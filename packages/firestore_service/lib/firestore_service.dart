@@ -12,14 +12,72 @@ class FirestoreService {
     bool merge = false,
   }) async {
     final reference = FirebaseFirestore.instance.doc(path);
-    print('$path: $data');
     await reference.set(data, SetOptions(merge: merge));
+  }
+
+  Future addData(
+      {required String collectionName,
+      required Map<String, dynamic> data}) async {
+    final reference = FirebaseFirestore.instance.collection(collectionName);
+    final _res = await reference.add(data);
+    return _res.id;
   }
 
   Future<void> deleteData({required String path}) async {
     final reference = FirebaseFirestore.instance.doc(path);
-    print('delete: $path');
+    //print('delete: $path');
     await reference.delete();
+  }
+
+  Future<void> addToArray({
+    required String path,
+    required String data,
+    required String fieldName,
+  }) async {
+    final reference = FirebaseFirestore.instance.doc(path);
+
+    await reference.update({
+      fieldName: FieldValue.arrayUnion([data]),
+    });
+  }
+
+  Future<void> removeFromArray({
+    required String path,
+    required String data,
+    required String fieldName,
+  }) async {
+    final reference = FirebaseFirestore.instance.doc(path);
+
+    await reference.update({
+      fieldName: FieldValue.arrayRemove([data]),
+    });
+  }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> getData(
+      {required String path}) async {
+    final reference = FirebaseFirestore.instance.doc(path);
+    return await reference.get();
+  }
+
+  /// get subcollection <subcollection> data of a collection <path>
+  Future<QuerySnapshot<Map<String, dynamic>>> getPathSubCollectionData({
+    required String path,
+    required String subcollectionName,
+  }) async {
+    final ref =
+        await FirebaseFirestore.instance.doc(path).collection(subcollectionName).get();
+    return ref;
+  }
+
+  Future<void> deletePathSubCollectionData({required String path,   required String subcollectionName,}) async {
+    final subCollec =
+        FirebaseFirestore.instance.doc(path).collection(subcollectionName);
+
+    final snaps = await subCollec.get();
+
+    for (var subData in snaps.docs) {
+      await subData.reference.delete();
+    }
   }
 
   Stream<List<T>> collectionStream<T>({
@@ -56,6 +114,9 @@ class FirestoreService {
         FirebaseFirestore.instance.doc(path);
     final Stream<DocumentSnapshot<Map<String, dynamic>>> snapshots =
         reference.snapshots();
+
+    //  print(snapshots.first.toString());
+
     return snapshots.map((snapshot) => builder(snapshot.data(), snapshot.id));
   }
 }
